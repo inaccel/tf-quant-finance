@@ -1,1 +1,1 @@
-from .vanilla_prices import binary_price
+from .vanilla_prices import option_price, binary_price

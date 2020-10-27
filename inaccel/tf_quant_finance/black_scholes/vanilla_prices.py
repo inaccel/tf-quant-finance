@@ -16,6 +16,7 @@
 import numpy as np
 import tensorflow.compat.v2 as tf
 import inaccel.coral as inaccel
+from tf_quant_finance.black_scholes import option_price as option_price_ref
 from tf_quant_finance.black_scholes import binary_price as binary_price_ref
 
 
@@ -138,62 +139,165 @@ def option_price(*,
     raise ValueError('At most one of continuous_dividends and cost_of_carries '
                      'may be supplied')
 
-  with tf.name_scope(name or 'option_price'):
-    strikes = tf.convert_to_tensor(strikes, dtype=dtype, name='strikes')
-    dtype = strikes.dtype
-    volatilities = tf.convert_to_tensor(
-        volatilities, dtype=dtype, name='volatilities')
-    expiries = tf.convert_to_tensor(expiries, dtype=dtype, name='expiries')
+  if is_normal_volatility:
+    return option_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_rates = discount_rates, continuous_dividends = continuous_dividends, cost_of_carries = cost_of_carries, discount_factors = discount_factors, is_call_options = is_call_options, is_normal_volatility = is_normal_volatility, dtype = dtype, name = name)
 
-    if discount_rates is not None:
-      discount_rates = tf.convert_to_tensor(
-          discount_rates, dtype=dtype, name='discount_rates')
-    elif discount_factors is not None:
-      discount_rates = -tf.math.log(discount_factors) / expiries
-    else:
-      discount_rates = tf.convert_to_tensor(
-          0.0, dtype=dtype, name='discount_rates')
+  if (dtype is not None) and (np.dtype(dtype) != np.float32):
+    return option_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_rates = discount_rates, continuous_dividends = continuous_dividends, cost_of_carries = cost_of_carries, discount_factors = discount_factors, is_call_options = is_call_options, is_normal_volatility = is_normal_volatility, dtype = dtype, name = name)
+
+  size = np.int32(1)
+
+  if not isinstance(volatilities, inaccel.ndarray) or volatilities.dtype != np.float32 or volatilities.ndim == 0:
+    volatilities = inaccel.array(volatilities, dtype = np.float32, ndmin = 1)
+  size = np.maximum(size, volatilities.size, dtype = np.int32)
+
+  if not isinstance(strikes, inaccel.ndarray) or strikes.dtype != np.float32 or strikes.ndim == 0:
+    strikes = inaccel.array(strikes, dtype = np.float32, ndmin = 1)
+  size = np.maximum(size, strikes.size, dtype = np.int32)
+
+  if not isinstance(expiries, inaccel.ndarray) or expiries.dtype != np.float32 or expiries.ndim == 0:
+    expiries = inaccel.array(expiries, dtype = np.float32, ndmin = 1)
+  size = np.maximum(size, expiries.size, dtype = np.int32)
+
+  if forwards is not None:
+    if not isinstance(forwards, inaccel.ndarray) or forwards.dtype != np.float32 or forwards.ndim == 0:
+      forwards = inaccel.array(forwards, dtype = np.float32, ndmin = 1)
+    size = np.maximum(size, forwards.size, dtype = np.int32)
+  else:
+    if not isinstance(spots, inaccel.ndarray) or spots.dtype != np.float32 or spots.ndim == 0:
+      spots = inaccel.array(spots, dtype = np.float32, ndmin = 1)
+    size = np.maximum(size, spots.size, dtype = np.int32)
+
+  if discount_factors is not None:
+    if not isinstance(discount_factors, inaccel.ndarray) or discount_factors.dtype != np.float32 or discount_factors.ndim == 0:
+      discount_factors = inaccel.array(discount_factors, dtype = np.float32, ndmin = 1)
+    size = np.maximum(size, discount_factors.size, dtype = np.int32)
+  elif discount_rates is not None:
+    if not isinstance(discount_rates, inaccel.ndarray) or discount_rates.dtype != np.float32 or discount_rates.ndim == 0:
+      discount_rates = inaccel.array(discount_rates, dtype = np.float32, ndmin = 1)
+    size = np.maximum(size, discount_rates.size, dtype = np.int32)
+
+  if cost_of_carries is not None:
+    if not isinstance(cost_of_carries, inaccel.ndarray) or cost_of_carries.dtype != np.float32 or cost_of_carries.ndim == 0:
+      cost_of_carries = inaccel.array(cost_of_carries, dtype = np.float32, ndmin = 1)
+    size = np.maximum(size, cost_of_carries.size, dtype = np.int32)
+  elif continuous_dividends is not None:
+    if not isinstance(continuous_dividends, inaccel.ndarray) or continuous_dividends.dtype != np.float32 or continuous_dividends.ndim == 0:
+      continuous_dividends = inaccel.array(continuous_dividends, dtype = np.float32, ndmin = 1)
+    size = np.maximum(size, continuous_dividends.size, dtype = np.int32)
+
+  if is_call_options is not None:
+    if not isinstance(is_call_options, inaccel.ndarray) or is_call_options.dtype != np.bool or is_call_options.ndim == 0:
+      is_call_options = inaccel.array(is_call_options, dtype = np.bool, ndmin = 1)
+    size = np.maximum(size, is_call_options.size, dtype = np.int32)
+
+  if volatilities.size == 1:
+    tmp = volatilities[0]
+    volatilities = inaccel.ndarray(size, dtype = np.float32)
+    volatilities.fill(tmp)
+  elif volatilities.size != size:
+    return option_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_rates = discount_rates, continuous_dividends = continuous_dividends, cost_of_carries = cost_of_carries, discount_factors = discount_factors, is_call_options = is_call_options, is_normal_volatility = is_normal_volatility, dtype = dtype, name = name)
+
+  if strikes.size == 1:
+    tmp = strikes[0]
+    strikes = inaccel.ndarray(size, dtype = np.float32)
+    strikes.fill(tmp)
+  elif strikes.size != size:
+    return option_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_rates = discount_rates, continuous_dividends = continuous_dividends, cost_of_carries = cost_of_carries, discount_factors = discount_factors, is_call_options = is_call_options, is_normal_volatility = is_normal_volatility, dtype = dtype, name = name)
+
+  if expiries.size == 1:
+    tmp = expiries[0]
+    expiries = inaccel.ndarray(size, dtype = np.float32)
+    expiries.fill(tmp)
+  elif expiries.size != size:
+    return option_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_rates = discount_rates, continuous_dividends = continuous_dividends, cost_of_carries = cost_of_carries, discount_factors = discount_factors, is_call_options = is_call_options, is_normal_volatility = is_normal_volatility, dtype = dtype, name = name)
+
+  if forwards is not None:
+    if forwards.size == 1:
+      tmp = forwards[0]
+      forwards = inaccel.ndarray(size, dtype = np.float32)
+      forwards.fill(tmp)
+    elif not forwards.size == size:
+      return option_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_rates = discount_rates, continuous_dividends = continuous_dividends, cost_of_carries = cost_of_carries, discount_factors = discount_factors, is_call_options = is_call_options, is_normal_volatility = is_normal_volatility, dtype = dtype, name = name)
+  else:
+    if spots.size == 1:
+      tmp = spots[0]
+      spots = inaccel.ndarray(size, dtype = np.float32)
+      spots.fill(tmp)
+    elif not spots.size == size:
+      return option_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_rates = discount_rates, continuous_dividends = continuous_dividends, cost_of_carries = cost_of_carries, discount_factors = discount_factors, is_call_options = is_call_options, is_normal_volatility = is_normal_volatility, dtype = dtype, name = name)
+
+  if cost_of_carries is None:
+    if discount_rates is None:
+      if discount_factors is not None:
+        discount_rates = -np.log(discount_factors) / expiries
+      else:
+        discount_rates = np.ndarray(size, dtype = np.float32)
+        discount_rates.fill(0.0)
 
     if continuous_dividends is None:
-      continuous_dividends = tf.convert_to_tensor(
-          0.0, dtype=dtype, name='continuous_dividends')
+      continuous_dividends = np.ndarray(size, dtype = np.float32)
+      continuous_dividends.fill(0.0)
 
-    if cost_of_carries is not None:
-      cost_of_carries = tf.convert_to_tensor(
-          cost_of_carries, dtype=dtype, name='cost_of_carries')
+    cost_of_carries = inaccel.array(discount_rates - continuous_dividends, dtype = np.float32)
+  else:
+    if cost_of_carries.size == 1:
+      tmp = cost_of_carries[0]
+      cost_of_carries = inaccel.ndarray(size, dtype = np.float32)
+      cost_of_carries.fill(tmp)
+    elif not cost_of_carries.size == size:
+      return option_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_rates = discount_rates, continuous_dividends = continuous_dividends, cost_of_carries = cost_of_carries, discount_factors = discount_factors, is_call_options = is_call_options, is_normal_volatility = is_normal_volatility, dtype = dtype, name = name)
+
+  if discount_factors is None:
+    if discount_rates is not None:
+      discount_factors = inaccel.array(np.exp(discount_rates * expiries), dtype = np.float32)
     else:
-      cost_of_carries = discount_rates - continuous_dividends
+      discount_factors = inaccel.ndarray(size, dtype = np.float32)
+      discount_factors.fill(1.0)
+  else:
+    if discount_factors.size == 1:
+      tmp = discount_factors[0]
+      discount_factors = inaccel.ndarray(size, dtype = np.float32)
+      discount_factors.fill(tmp)
+    elif not discount_factors.size == size:
+      return option_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_rates = discount_rates, continuous_dividends = continuous_dividends, cost_of_carries = cost_of_carries, discount_factors = discount_factors, is_call_options = is_call_options, is_normal_volatility = is_normal_volatility, dtype = dtype, name = name)
 
-    if discount_factors is not None:
-      discount_factors = tf.convert_to_tensor(
-          discount_factors, dtype=dtype, name='discount_factors')
+  if is_call_options is None:
+    is_call_options = inaccel.ndarray(size, dtype = np.bool)
+    is_call_options.fill(True)
+  else:
+    if is_call_options.size == 1:
+      tmp = is_call_options[0]
+      is_call_options = inaccel.ndarray(size, dtype = np.bool)
+      is_call_options.fill(tmp)
+    elif is_call_options.size != size:
+      return option_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_rates = discount_rates, continuous_dividends = continuous_dividends, cost_of_carries = cost_of_carries, discount_factors = discount_factors, is_call_options = is_call_options, is_normal_volatility = is_normal_volatility, dtype = dtype, name = name)
+
+  option_price = inaccel.ndarray(size, dtype = np.float32)
+
+  try:
+    request = inaccel.request('com.inaccel.quantitativeFinance.blackScholes.option-price')
+
+    if (forwards is not None):
+      request.arg(forwards)
+      request.arg(np.int32(False))
     else:
-      discount_factors = tf.exp(-discount_rates * expiries)
+      request.arg(spots)
+      request.arg(np.int32(True))
+    request.arg(cost_of_carries)
+    request.arg(strikes)
+    request.arg(expiries)
+    request.arg(discount_factors)
+    request.arg(volatilities)
+    request.arg(is_call_options)
+    request.arg(size)
+    request.arg(option_price)
 
-    if forwards is not None:
-      forwards = tf.convert_to_tensor(forwards, dtype=dtype, name='forwards')
-    else:
-      spots = tf.convert_to_tensor(spots, dtype=dtype, name='spots')
-      forwards = spots * tf.exp(cost_of_carries * expiries)
+    inaccel.wait(inaccel.submit(request))
 
-    sqrt_var = volatilities * tf.math.sqrt(expiries)
-    if not is_normal_volatility:  # lognormal model
-      d1 = (tf.math.log(forwards / strikes) +
-            sqrt_var * sqrt_var / 2) / sqrt_var
-      d2 = d1 - sqrt_var
-      undiscounted_calls = forwards * _ncdf(d1) - strikes * _ncdf(d2)
-    else:  # normal model
-      d1 = (forwards - strikes) / sqrt_var
-      undiscounted_calls = (forwards - strikes) * _ncdf(
-          d1) + sqrt_var * tf.math.exp(-0.5 * d1**2) / np.sqrt(2 * np.pi)
-
-    if is_call_options is None:
-      return discount_factors * undiscounted_calls
-    undiscounted_forward = forwards - strikes
-    undiscounted_puts = undiscounted_calls - undiscounted_forward
-    predicate = tf.broadcast_to(is_call_options, tf.shape(undiscounted_calls))
-    return discount_factors * tf.where(predicate, undiscounted_calls,
-                                       undiscounted_puts)
+    return tf.convert_to_tensor(option_price, name = (name or 'option_price'))
+  except:
+    return option_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_rates = discount_rates, continuous_dividends = continuous_dividends, cost_of_carries = cost_of_carries, discount_factors = discount_factors, is_call_options = is_call_options, is_normal_volatility = is_normal_volatility, dtype = dtype, name = name)
 
 
 # TODO(b/154806390): Binary price signature should be the same as that of the
