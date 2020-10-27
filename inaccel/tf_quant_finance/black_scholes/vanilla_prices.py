@@ -15,6 +15,8 @@
 
 import numpy as np
 import tensorflow.compat.v2 as tf
+import inaccel.coral as inaccel
+from tf_quant_finance.black_scholes import binary_price as binary_price_ref
 
 
 def option_price(*,
@@ -281,43 +283,121 @@ def binary_price(*,
   if (spots is None) == (forwards is None):
     raise ValueError('Either spots or forwards must be supplied but not both.')
 
-  with tf.name_scope(name or 'binary_price'):
-    strikes = tf.convert_to_tensor(strikes, dtype=dtype, name='strikes')
-    dtype = strikes.dtype
-    volatilities = tf.convert_to_tensor(
-        volatilities, dtype=dtype, name='volatilities')
-    expiries = tf.convert_to_tensor(expiries, dtype=dtype, name='expiries')
+  if (dtype is not None) and (np.dtype(dtype) != np.float32):
+    return binary_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_factors = discount_factors, is_call_options = is_call_options, dtype = dtype, name = name)
 
-    if discount_factors is None:
-      discount_factors = tf.convert_to_tensor(
-          1.0, dtype=dtype, name='discount_factors')
+  size = np.int32(1)
+
+  if not isinstance(volatilities, inaccel.ndarray) or volatilities.dtype != np.float32 or volatilities.ndim == 0:
+    volatilities = inaccel.array(volatilities, dtype = np.float32, ndmin = 1)
+  size = np.maximum(size, volatilities.size, dtype = np.int32)
+
+  if not isinstance(strikes, inaccel.ndarray) or strikes.dtype != np.float32 or strikes.ndim == 0:
+    strikes = inaccel.array(strikes, dtype = np.float32, ndmin = 1)
+  size = np.maximum(size, strikes.size, dtype = np.int32)
+
+  if not isinstance(expiries, inaccel.ndarray) or expiries.dtype != np.float32 or expiries.ndim == 0:
+    expiries = inaccel.array(expiries, dtype = np.float32, ndmin = 1)
+  size = np.maximum(size, expiries.size, dtype = np.int32)
+
+  if forwards is not None:
+    if not isinstance(forwards, inaccel.ndarray) or forwards.dtype != np.float32 or forwards.ndim == 0:
+      forwards = inaccel.array(forwards, dtype = np.float32, ndmin = 1)
+    size = np.maximum(size, forwards.size, dtype = np.int32)
+  else:
+    if not isinstance(spots, inaccel.ndarray) or spots.dtype != np.float32 or spots.ndim == 0:
+      spots = inaccel.array(spots, dtype = np.float32, ndmin = 1)
+    size = np.maximum(size, spots.size, dtype = np.int32)
+
+  if discount_factors is not None:
+    if not isinstance(discount_factors, inaccel.ndarray) or discount_factors.dtype != np.float32 or discount_factors.ndim == 0:
+      discount_factors = inaccel.array(discount_factors, dtype = np.float32, ndmin = 1)
+    size = np.maximum(size, discount_factors.size, dtype = np.int32)
+
+  if is_call_options is not None:
+    if not isinstance(is_call_options, inaccel.ndarray) or is_call_options.dtype != np.bool or is_call_options.ndim == 0:
+      is_call_options = inaccel.array(is_call_options, dtype = np.bool, ndmin = 1)
+    size = np.maximum(size, is_call_options.size, dtype = np.int32)
+
+  if volatilities.size == 1:
+    tmp = volatilities[0]
+    volatilities = inaccel.ndarray(size, dtype = np.float32)
+    volatilities.fill(tmp)
+  elif volatilities.size != size:
+    return binary_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_factors = discount_factors, is_call_options = is_call_options, dtype = dtype, name = name)
+
+  if strikes.size == 1:
+    tmp = strikes[0]
+    strikes = inaccel.ndarray(size, dtype = np.float32)
+    strikes.fill(tmp)
+  elif strikes.size != size:
+    return binary_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_factors = discount_factors, is_call_options = is_call_options, dtype = dtype, name = name)
+
+  if expiries.size == 1:
+    tmp = expiries[0]
+    expiries = inaccel.ndarray(size, dtype = np.float32)
+    expiries.fill(tmp)
+  elif expiries.size != size:
+    return binary_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_factors = discount_factors, is_call_options = is_call_options, dtype = dtype, name = name)
+
+  if forwards is not None:
+    if forwards.size == 1:
+      tmp = forwards[0]
+      forwards = inaccel.ndarray(size, dtype = np.float32)
+      forwards.fill(tmp)
+    elif forwards.size != size:
+      return binary_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_factors = discount_factors, is_call_options = is_call_options, dtype = dtype, name = name)
+  else:
+    if spots.size == 1:
+      tmp = spots[0]
+      spots = inaccel.ndarray(size, dtype = np.float32)
+      spots.fill(tmp)
+    elif spots.size != size:
+      return binary_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_factors = discount_factors, is_call_options = is_call_options, dtype = dtype, name = name)
+
+  if discount_factors is None:
+    discount_factors = inaccel.ndarray(size, dtype = np.float32)
+    discount_factors.fill(1.0)
+  else:
+    if discount_factors.size == 1:
+      tmp = discount_factors[0]
+      discount_factors = inaccel.ndarray(size, dtype = np.float32)
+      discount_factors.fill(tmp)
+    elif discount_factors.size != size:
+      return binary_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_factors = discount_factors, is_call_options = is_call_options, dtype = dtype, name = name)
+
+  if is_call_options is None:
+    is_call_options = inaccel.ndarray(size, dtype = np.bool)
+    is_call_options.fill(True)
+  else:
+    if is_call_options.size == 1:
+      tmp = is_call_options[0]
+      is_call_options = inaccel.ndarray(size, dtype = np.bool)
+      is_call_options.fill(tmp)
+    elif is_call_options.size != size:
+      return binary_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_factors = discount_factors, is_call_options = is_call_options, dtype = dtype, name = name)
+
+  binary_price = inaccel.ndarray(size, dtype = np.float32)
+
+  try:
+    request = inaccel.request('com.inaccel.quantitativeFinance.blackScholes.binary-price')
+
+    if (forwards is not None):
+      request.arg(forwards)
+      request.arg(np.int32(False))
     else:
-      discount_factors = tf.convert_to_tensor(
-          discount_factors, dtype=dtype, name='discount_factors')
+      request.arg(spots)
+      request.arg(np.int32(True))
+    request.arg(strikes)
+    request.arg(expiries)
+    request.arg(discount_factors)
+    request.arg(volatilities)
+    request.arg(is_call_options)
+    request.arg(size)
+    request.arg(binary_price)
 
-    if forwards is not None:
-      forwards = tf.convert_to_tensor(forwards, dtype=dtype, name='forwards')
-    else:
-      spots = tf.convert_to_tensor(spots, dtype=dtype, name='spots')
-      forwards = spots / discount_factors
+    inaccel.wait(inaccel.submit(request))
 
-    sqrt_var = volatilities * tf.math.sqrt(expiries)
-    d1 = (tf.math.log(forwards / strikes) + sqrt_var * sqrt_var / 2) / sqrt_var
-    d2 = d1 - sqrt_var
-    undiscounted_calls = _ncdf(d2)
-    if is_call_options is None:
-      return discount_factors * undiscounted_calls
-    is_call_options = tf.convert_to_tensor(is_call_options,
-                                           dtype=tf.bool,
-                                           name='is_call_options')
-    undiscounted_puts = 1 - undiscounted_calls
-    predicate = tf.broadcast_to(is_call_options, tf.shape(undiscounted_calls))
-    return discount_factors * tf.where(predicate, undiscounted_calls,
-                                       undiscounted_puts)
-
-
-def _ncdf(x):
-  return (tf.math.erf(x / _SQRT_2) + 1) / 2
-
-
-_SQRT_2 = np.sqrt(2.0, dtype=np.float64)
+    return tf.convert_to_tensor(binary_price, name = (name or 'binary_price'))
+  except:
+    return binary_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_factors = discount_factors, is_call_options = is_call_options, dtype = dtype, name = name)
