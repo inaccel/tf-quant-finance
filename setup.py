@@ -16,7 +16,7 @@ def bump(package, version):
         inaccel = tuple([0])
     return '.'.join(str(x) for x in version.release + inaccel)
 
-coral_api = '==1.8'
+coral_api = '==2.*'
 
 package = 'tf-quant-finance'
 version = '0.0.1.dev24'
@@ -43,9 +43,9 @@ setup(
         'Operating System :: POSIX :: Linux',
         'Programming Language :: Python',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
     ],
-    python_requires = '>=3.6',
+    python_requires = '>=3.7',
 )

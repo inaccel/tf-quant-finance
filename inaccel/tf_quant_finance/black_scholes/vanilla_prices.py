@@ -19,6 +19,13 @@ import inaccel.coral as inaccel
 from tf_quant_finance.black_scholes import option_price as option_price_ref
 from tf_quant_finance.black_scholes import binary_price as binary_price_ref
 
+def ndinaccel(shape, dtype):
+  with inaccel.allocator:
+    return np.ndarray(shape, dtype = dtype)
+
+def asinaccel(obj, dtype, ndmin = 0):
+  with inaccel.allocator:
+    return np.array(obj, dtype=dtype, ndmin=ndmin, copy = not inaccel.allocator.handles(obj))
 
 def option_price(*,
                  volatilities,
@@ -147,67 +154,57 @@ def option_price(*,
 
   size = np.int32(1)
 
-  if not isinstance(volatilities, inaccel.ndarray) or volatilities.dtype != np.float32 or volatilities.ndim == 0:
-    volatilities = inaccel.array(volatilities, dtype = np.float32, ndmin = 1)
+  volatilities = asinaccel(volatilities, np.float32, 1)
   size = np.maximum(size, volatilities.size, dtype = np.int32)
 
-  if not isinstance(strikes, inaccel.ndarray) or strikes.dtype != np.float32 or strikes.ndim == 0:
-    strikes = inaccel.array(strikes, dtype = np.float32, ndmin = 1)
+  strikes = asinaccel(strikes, np.float32, 1)
   size = np.maximum(size, strikes.size, dtype = np.int32)
 
-  if not isinstance(expiries, inaccel.ndarray) or expiries.dtype != np.float32 or expiries.ndim == 0:
-    expiries = inaccel.array(expiries, dtype = np.float32, ndmin = 1)
+  expiries = asinaccel(expiries, np.float32, 1)
   size = np.maximum(size, expiries.size, dtype = np.int32)
 
   if forwards is not None:
-    if not isinstance(forwards, inaccel.ndarray) or forwards.dtype != np.float32 or forwards.ndim == 0:
-      forwards = inaccel.array(forwards, dtype = np.float32, ndmin = 1)
+    forwards = asinaccel(forwards, np.float32, 1)
     size = np.maximum(size, forwards.size, dtype = np.int32)
   else:
-    if not isinstance(spots, inaccel.ndarray) or spots.dtype != np.float32 or spots.ndim == 0:
-      spots = inaccel.array(spots, dtype = np.float32, ndmin = 1)
+    spots = asinaccel(spots, np.float32, 1)
     size = np.maximum(size, spots.size, dtype = np.int32)
 
   if discount_factors is not None:
-    if not isinstance(discount_factors, inaccel.ndarray) or discount_factors.dtype != np.float32 or discount_factors.ndim == 0:
-      discount_factors = inaccel.array(discount_factors, dtype = np.float32, ndmin = 1)
+    discount_factors = asinaccel(discount_factors, np.float32, 1)
     size = np.maximum(size, discount_factors.size, dtype = np.int32)
   elif discount_rates is not None:
-    if not isinstance(discount_rates, inaccel.ndarray) or discount_rates.dtype != np.float32 or discount_rates.ndim == 0:
-      discount_rates = inaccel.array(discount_rates, dtype = np.float32, ndmin = 1)
+    discount_rates = asinaccel(discount_rates, np.float32, 1)
     size = np.maximum(size, discount_rates.size, dtype = np.int32)
 
   if cost_of_carries is not None:
-    if not isinstance(cost_of_carries, inaccel.ndarray) or cost_of_carries.dtype != np.float32 or cost_of_carries.ndim == 0:
-      cost_of_carries = inaccel.array(cost_of_carries, dtype = np.float32, ndmin = 1)
+    cost_of_carries = asinaccel(cost_of_carries, np.float32, 1)
     size = np.maximum(size, cost_of_carries.size, dtype = np.int32)
   elif continuous_dividends is not None:
-    if not isinstance(continuous_dividends, inaccel.ndarray) or continuous_dividends.dtype != np.float32 or continuous_dividends.ndim == 0:
-      continuous_dividends = inaccel.array(continuous_dividends, dtype = np.float32, ndmin = 1)
+    continuous_dividends = asinaccel(continuous_dividends, np.float32, 1)
     size = np.maximum(size, continuous_dividends.size, dtype = np.int32)
 
   if is_call_options is not None:
-    if not isinstance(is_call_options, inaccel.ndarray) or is_call_options.dtype != np.bool or is_call_options.ndim == 0:
-      is_call_options = inaccel.array(is_call_options, dtype = np.bool, ndmin = 1)
+    is_call_options = asinaccel(is_call_options, np.bool, 1)
     size = np.maximum(size, is_call_options.size, dtype = np.int32)
 
   if volatilities.size == 1:
     tmp = volatilities[0]
-    volatilities = inaccel.ndarray(size, dtype = np.float32)
+    volatilities = ndinaccel(size, dtype = np.float32)
     volatilities.fill(tmp)
   elif volatilities.size != size:
     return option_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_rates = discount_rates, continuous_dividends = continuous_dividends, cost_of_carries = cost_of_carries, discount_factors = discount_factors, is_call_options = is_call_options, is_normal_volatility = is_normal_volatility, dtype = dtype, name = name)
 
   if strikes.size == 1:
     tmp = strikes[0]
-    strikes = inaccel.ndarray(size, dtype = np.float32)
+    strikes = ndinaccel(size, dtype = np.float32)
     strikes.fill(tmp)
   elif strikes.size != size:
     return option_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_rates = discount_rates, continuous_dividends = continuous_dividends, cost_of_carries = cost_of_carries, discount_factors = discount_factors, is_call_options = is_call_options, is_normal_volatility = is_normal_volatility, dtype = dtype, name = name)
 
   if expiries.size == 1:
     tmp = expiries[0]
-    expiries = inaccel.ndarray(size, dtype = np.float32)
+    expiries = ndinaccel(size, dtype = np.float32)
     expiries.fill(tmp)
   elif expiries.size != size:
     return option_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_rates = discount_rates, continuous_dividends = continuous_dividends, cost_of_carries = cost_of_carries, discount_factors = discount_factors, is_call_options = is_call_options, is_normal_volatility = is_normal_volatility, dtype = dtype, name = name)
@@ -215,14 +212,14 @@ def option_price(*,
   if forwards is not None:
     if forwards.size == 1:
       tmp = forwards[0]
-      forwards = inaccel.ndarray(size, dtype = np.float32)
+      forwards = ndinaccel(size, dtype = np.float32)
       forwards.fill(tmp)
     elif not forwards.size == size:
       return option_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_rates = discount_rates, continuous_dividends = continuous_dividends, cost_of_carries = cost_of_carries, discount_factors = discount_factors, is_call_options = is_call_options, is_normal_volatility = is_normal_volatility, dtype = dtype, name = name)
   else:
     if spots.size == 1:
       tmp = spots[0]
-      spots = inaccel.ndarray(size, dtype = np.float32)
+      spots = ndinaccel(size, dtype = np.float32)
       spots.fill(tmp)
     elif not spots.size == size:
       return option_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_rates = discount_rates, continuous_dividends = continuous_dividends, cost_of_carries = cost_of_carries, discount_factors = discount_factors, is_call_options = is_call_options, is_normal_volatility = is_normal_volatility, dtype = dtype, name = name)
@@ -239,41 +236,41 @@ def option_price(*,
       continuous_dividends = np.ndarray(size, dtype = np.float32)
       continuous_dividends.fill(0.0)
 
-    cost_of_carries = inaccel.array(discount_rates - continuous_dividends, dtype = np.float32)
+    cost_of_carries = asinaccel(discount_rates - continuous_dividends, dtype = np.float32)
   else:
     if cost_of_carries.size == 1:
       tmp = cost_of_carries[0]
-      cost_of_carries = inaccel.ndarray(size, dtype = np.float32)
+      cost_of_carries = ndinaccel(size, dtype = np.float32)
       cost_of_carries.fill(tmp)
     elif not cost_of_carries.size == size:
       return option_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_rates = discount_rates, continuous_dividends = continuous_dividends, cost_of_carries = cost_of_carries, discount_factors = discount_factors, is_call_options = is_call_options, is_normal_volatility = is_normal_volatility, dtype = dtype, name = name)
 
   if discount_factors is None:
     if discount_rates is not None:
-      discount_factors = inaccel.array(np.exp(discount_rates * expiries), dtype = np.float32)
+      discount_factors = asinaccel(np.exp(discount_rates * expiries), dtype = np.float32)
     else:
-      discount_factors = inaccel.ndarray(size, dtype = np.float32)
+      discount_factors = ndinaccel(size, dtype = np.float32)
       discount_factors.fill(1.0)
   else:
     if discount_factors.size == 1:
       tmp = discount_factors[0]
-      discount_factors = inaccel.ndarray(size, dtype = np.float32)
+      discount_factors = ndinaccel(size, dtype = np.float32)
       discount_factors.fill(tmp)
     elif not discount_factors.size == size:
       return option_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_rates = discount_rates, continuous_dividends = continuous_dividends, cost_of_carries = cost_of_carries, discount_factors = discount_factors, is_call_options = is_call_options, is_normal_volatility = is_normal_volatility, dtype = dtype, name = name)
 
   if is_call_options is None:
-    is_call_options = inaccel.ndarray(size, dtype = np.bool)
+    is_call_options = ndinaccel(size, dtype = np.bool)
     is_call_options.fill(True)
   else:
     if is_call_options.size == 1:
       tmp = is_call_options[0]
-      is_call_options = inaccel.ndarray(size, dtype = np.bool)
+      is_call_options = ndinaccel(size, dtype = np.bool)
       is_call_options.fill(tmp)
     elif is_call_options.size != size:
       return option_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_rates = discount_rates, continuous_dividends = continuous_dividends, cost_of_carries = cost_of_carries, discount_factors = discount_factors, is_call_options = is_call_options, is_normal_volatility = is_normal_volatility, dtype = dtype, name = name)
 
-  option_price = inaccel.ndarray(size, dtype = np.float32)
+  option_price = ndinaccel(size, dtype = np.float32)
 
   try:
     request = inaccel.request('com.inaccel.quantitativeFinance.blackScholes.option-price')
@@ -293,7 +290,7 @@ def option_price(*,
     request.arg(size)
     request.arg(option_price)
 
-    inaccel.wait(inaccel.submit(request))
+    inaccel.submit(request).result()
 
     return tf.convert_to_tensor(option_price, name = (name or 'option_price'))
   except:
@@ -392,54 +389,47 @@ def binary_price(*,
 
   size = np.int32(1)
 
-  if not isinstance(volatilities, inaccel.ndarray) or volatilities.dtype != np.float32 or volatilities.ndim == 0:
-    volatilities = inaccel.array(volatilities, dtype = np.float32, ndmin = 1)
+  volatilities = asinaccel(volatilities, np.float32, 1)
   size = np.maximum(size, volatilities.size, dtype = np.int32)
 
-  if not isinstance(strikes, inaccel.ndarray) or strikes.dtype != np.float32 or strikes.ndim == 0:
-    strikes = inaccel.array(strikes, dtype = np.float32, ndmin = 1)
+  strikes = asinaccel(strikes, np.float32, 1)
   size = np.maximum(size, strikes.size, dtype = np.int32)
 
-  if not isinstance(expiries, inaccel.ndarray) or expiries.dtype != np.float32 or expiries.ndim == 0:
-    expiries = inaccel.array(expiries, dtype = np.float32, ndmin = 1)
+  expiries = asinaccel(expiries, np.float32, 1)
   size = np.maximum(size, expiries.size, dtype = np.int32)
 
   if forwards is not None:
-    if not isinstance(forwards, inaccel.ndarray) or forwards.dtype != np.float32 or forwards.ndim == 0:
-      forwards = inaccel.array(forwards, dtype = np.float32, ndmin = 1)
+    forwards = asinaccel(forwards, np.float32, 1)
     size = np.maximum(size, forwards.size, dtype = np.int32)
   else:
-    if not isinstance(spots, inaccel.ndarray) or spots.dtype != np.float32 or spots.ndim == 0:
-      spots = inaccel.array(spots, dtype = np.float32, ndmin = 1)
+    spots = asinaccel(spots, np.float32, 1)
     size = np.maximum(size, spots.size, dtype = np.int32)
 
   if discount_factors is not None:
-    if not isinstance(discount_factors, inaccel.ndarray) or discount_factors.dtype != np.float32 or discount_factors.ndim == 0:
-      discount_factors = inaccel.array(discount_factors, dtype = np.float32, ndmin = 1)
+    discount_factors = asinaccel(discount_factors, np.float32, 1)
     size = np.maximum(size, discount_factors.size, dtype = np.int32)
 
   if is_call_options is not None:
-    if not isinstance(is_call_options, inaccel.ndarray) or is_call_options.dtype != np.bool or is_call_options.ndim == 0:
-      is_call_options = inaccel.array(is_call_options, dtype = np.bool, ndmin = 1)
+    is_call_options = asinaccel(is_call_options, np.bool, 1)
     size = np.maximum(size, is_call_options.size, dtype = np.int32)
 
   if volatilities.size == 1:
     tmp = volatilities[0]
-    volatilities = inaccel.ndarray(size, dtype = np.float32)
+    volatilities = ndinaccel(size, dtype = np.float32)
     volatilities.fill(tmp)
   elif volatilities.size != size:
     return binary_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_factors = discount_factors, is_call_options = is_call_options, dtype = dtype, name = name)
 
   if strikes.size == 1:
     tmp = strikes[0]
-    strikes = inaccel.ndarray(size, dtype = np.float32)
+    strikes = ndinaccel(size, dtype = np.float32)
     strikes.fill(tmp)
   elif strikes.size != size:
     return binary_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_factors = discount_factors, is_call_options = is_call_options, dtype = dtype, name = name)
 
   if expiries.size == 1:
     tmp = expiries[0]
-    expiries = inaccel.ndarray(size, dtype = np.float32)
+    expiries = ndinaccel(size, dtype = np.float32)
     expiries.fill(tmp)
   elif expiries.size != size:
     return binary_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_factors = discount_factors, is_call_options = is_call_options, dtype = dtype, name = name)
@@ -447,41 +437,41 @@ def binary_price(*,
   if forwards is not None:
     if forwards.size == 1:
       tmp = forwards[0]
-      forwards = inaccel.ndarray(size, dtype = np.float32)
+      forwards = ndinaccel(size, dtype = np.float32)
       forwards.fill(tmp)
     elif forwards.size != size:
       return binary_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_factors = discount_factors, is_call_options = is_call_options, dtype = dtype, name = name)
   else:
     if spots.size == 1:
       tmp = spots[0]
-      spots = inaccel.ndarray(size, dtype = np.float32)
+      spots = ndinaccel(size, dtype = np.float32)
       spots.fill(tmp)
     elif spots.size != size:
       return binary_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_factors = discount_factors, is_call_options = is_call_options, dtype = dtype, name = name)
 
   if discount_factors is None:
-    discount_factors = inaccel.ndarray(size, dtype = np.float32)
+    discount_factors = ndinaccel(size, dtype = np.float32)
     discount_factors.fill(1.0)
   else:
     if discount_factors.size == 1:
       tmp = discount_factors[0]
-      discount_factors = inaccel.ndarray(size, dtype = np.float32)
+      discount_factors = ndinaccel(size, dtype = np.float32)
       discount_factors.fill(tmp)
     elif discount_factors.size != size:
       return binary_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_factors = discount_factors, is_call_options = is_call_options, dtype = dtype, name = name)
 
   if is_call_options is None:
-    is_call_options = inaccel.ndarray(size, dtype = np.bool)
+    is_call_options = ndinaccel(size, dtype = np.bool)
     is_call_options.fill(True)
   else:
     if is_call_options.size == 1:
       tmp = is_call_options[0]
-      is_call_options = inaccel.ndarray(size, dtype = np.bool)
+      is_call_options = ndinaccel(size, dtype = np.bool)
       is_call_options.fill(tmp)
     elif is_call_options.size != size:
       return binary_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_factors = discount_factors, is_call_options = is_call_options, dtype = dtype, name = name)
 
-  binary_price = inaccel.ndarray(size, dtype = np.float32)
+  binary_price = ndinaccel(size, dtype = np.float32)
 
   try:
     request = inaccel.request('com.inaccel.quantitativeFinance.blackScholes.binary-price')
@@ -500,7 +490,7 @@ def binary_price(*,
     request.arg(size)
     request.arg(binary_price)
 
-    inaccel.wait(inaccel.submit(request))
+    inaccel.submit(request).result()
 
     return tf.convert_to_tensor(binary_price, name = (name or 'binary_price'))
   except:
