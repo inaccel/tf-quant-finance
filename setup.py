@@ -19,7 +19,7 @@ def bump(package, version):
 coral_api = '==2.*'
 
 package = 'tf-quant-finance'
-version = '0.0.1.dev24'
+version = '0.0.1.dev26'
 
 setup(
     name = 'inaccel-' + package,

@@ -13,19 +13,22 @@
 # limitations under the License.
 """Black Scholes prices of a batch of European options."""
 
+import inaccel.coral as inaccel
 import numpy as np
 import tensorflow.compat.v2 as tf
-import inaccel.coral as inaccel
 from tf_quant_finance.black_scholes import option_price as option_price_ref
 from tf_quant_finance.black_scholes import binary_price as binary_price_ref
 
+
 def ndinaccel(shape, dtype):
   with inaccel.allocator:
-    return np.ndarray(shape, dtype = dtype)
+    return np.ndarray(shape, dtype)
 
-def asinaccel(obj, dtype, ndmin = 0):
+
+def asinaccel(obj, dtype=None):
   with inaccel.allocator:
-    return np.array(obj, dtype=dtype, ndmin=ndmin, copy = not inaccel.allocator.handles(obj))
+    return np.array(obj, dtype, copy=not inaccel.allocator.handles(obj), ndmin=1)
+
 
 def option_price(*,
                  volatilities,
@@ -111,7 +114,8 @@ def option_price(*,
       option price is returned). If `spots` is supplied and `discount_factors`
       is not `None` then this is also used to compute the forwards to expiry.
       At most one of discount_rates and discount_factors can be supplied.
-      Default value: `None`, which maps to -log(discount_factors) / expiries
+      Default value: `None`, which maps to e^(-rT) calculated from
+      discount_rates.
     is_call_options: A boolean `Tensor` of a shape compatible with
       `volatilities`. Indicates whether the option is a call (if True) or a put
       (if False). If not supplied, call options are assumed.
@@ -147,130 +151,130 @@ def option_price(*,
                      'may be supplied')
 
   if is_normal_volatility:
-    return option_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_rates = discount_rates, continuous_dividends = continuous_dividends, cost_of_carries = cost_of_carries, discount_factors = discount_factors, is_call_options = is_call_options, is_normal_volatility = is_normal_volatility, dtype = dtype, name = name)
+    return option_price_ref(volatilities=volatilities, strikes=strikes, expiries=expiries, spots=spots, forwards=forwards, discount_rates=discount_rates, continuous_dividends=continuous_dividends, cost_of_carries=cost_of_carries, discount_factors=discount_factors, is_call_options=is_call_options, is_normal_volatility=is_normal_volatility, dtype=dtype, name=name)
 
   if (dtype is not None) and (np.dtype(dtype) != np.float32):
-    return option_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_rates = discount_rates, continuous_dividends = continuous_dividends, cost_of_carries = cost_of_carries, discount_factors = discount_factors, is_call_options = is_call_options, is_normal_volatility = is_normal_volatility, dtype = dtype, name = name)
+    return option_price_ref(volatilities=volatilities, strikes=strikes, expiries=expiries, spots=spots, forwards=forwards, discount_rates=discount_rates, continuous_dividends=continuous_dividends, cost_of_carries=cost_of_carries, discount_factors=discount_factors, is_call_options=is_call_options, is_normal_volatility=is_normal_volatility, dtype=dtype, name=name)
 
   size = np.int32(1)
 
-  volatilities = asinaccel(volatilities, np.float32, 1)
-  size = np.maximum(size, volatilities.size, dtype = np.int32)
+  volatilities = asinaccel(volatilities, np.float32)
+  size = np.maximum(size, volatilities.size, dtype=np.int32)
 
-  strikes = asinaccel(strikes, np.float32, 1)
-  size = np.maximum(size, strikes.size, dtype = np.int32)
+  strikes = asinaccel(strikes, np.float32)
+  size = np.maximum(size, strikes.size, dtype=np.int32)
 
-  expiries = asinaccel(expiries, np.float32, 1)
-  size = np.maximum(size, expiries.size, dtype = np.int32)
+  expiries = asinaccel(expiries, np.float32)
+  size = np.maximum(size, expiries.size, dtype=np.int32)
 
   if forwards is not None:
-    forwards = asinaccel(forwards, np.float32, 1)
-    size = np.maximum(size, forwards.size, dtype = np.int32)
+    forwards = asinaccel(forwards, np.float32)
+    size = np.maximum(size, forwards.size, dtype=np.int32)
   else:
-    spots = asinaccel(spots, np.float32, 1)
-    size = np.maximum(size, spots.size, dtype = np.int32)
+    spots = asinaccel(spots, np.float32)
+    size = np.maximum(size, spots.size, dtype=np.int32)
 
   if discount_factors is not None:
-    discount_factors = asinaccel(discount_factors, np.float32, 1)
-    size = np.maximum(size, discount_factors.size, dtype = np.int32)
+    discount_factors = asinaccel(discount_factors, np.float32)
+    size = np.maximum(size, discount_factors.size, dtype=np.int32)
   elif discount_rates is not None:
-    discount_rates = asinaccel(discount_rates, np.float32, 1)
-    size = np.maximum(size, discount_rates.size, dtype = np.int32)
+    discount_rates = asinaccel(discount_rates, np.float32)
+    size = np.maximum(size, discount_rates.size, dtype=np.int32)
 
   if cost_of_carries is not None:
-    cost_of_carries = asinaccel(cost_of_carries, np.float32, 1)
-    size = np.maximum(size, cost_of_carries.size, dtype = np.int32)
+    cost_of_carries = asinaccel(cost_of_carries, np.float32)
+    size = np.maximum(size, cost_of_carries.size, dtype=np.int32)
   elif continuous_dividends is not None:
-    continuous_dividends = asinaccel(continuous_dividends, np.float32, 1)
-    size = np.maximum(size, continuous_dividends.size, dtype = np.int32)
+    continuous_dividends = asinaccel(continuous_dividends, np.float32)
+    size = np.maximum(size, continuous_dividends.size, dtype=np.int32)
 
   if is_call_options is not None:
-    is_call_options = asinaccel(is_call_options, np.bool, 1)
-    size = np.maximum(size, is_call_options.size, dtype = np.int32)
+    is_call_options = asinaccel(is_call_options, np.bool_)
+    size = np.maximum(size, is_call_options.size, dtype=np.int32)
 
   if volatilities.size == 1:
     tmp = volatilities[0]
-    volatilities = ndinaccel(size, dtype = np.float32)
+    volatilities = ndinaccel(size, np.float32)
     volatilities.fill(tmp)
   elif volatilities.size != size:
-    return option_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_rates = discount_rates, continuous_dividends = continuous_dividends, cost_of_carries = cost_of_carries, discount_factors = discount_factors, is_call_options = is_call_options, is_normal_volatility = is_normal_volatility, dtype = dtype, name = name)
+    return option_price_ref(volatilities=volatilities, strikes=strikes, expiries=expiries, spots=spots, forwards=forwards, discount_rates=discount_rates, continuous_dividends=continuous_dividends, cost_of_carries=cost_of_carries, discount_factors=discount_factors, is_call_options=is_call_options, is_normal_volatility=is_normal_volatility, dtype=dtype, name=name)
 
   if strikes.size == 1:
     tmp = strikes[0]
-    strikes = ndinaccel(size, dtype = np.float32)
+    strikes = ndinaccel(size, np.float32)
     strikes.fill(tmp)
   elif strikes.size != size:
-    return option_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_rates = discount_rates, continuous_dividends = continuous_dividends, cost_of_carries = cost_of_carries, discount_factors = discount_factors, is_call_options = is_call_options, is_normal_volatility = is_normal_volatility, dtype = dtype, name = name)
+    return option_price_ref(volatilities=volatilities, strikes=strikes, expiries=expiries, spots=spots, forwards=forwards, discount_rates=discount_rates, continuous_dividends=continuous_dividends, cost_of_carries=cost_of_carries, discount_factors=discount_factors, is_call_options=is_call_options, is_normal_volatility=is_normal_volatility, dtype=dtype, name=name)
 
   if expiries.size == 1:
     tmp = expiries[0]
-    expiries = ndinaccel(size, dtype = np.float32)
+    expiries = ndinaccel(size, np.float32)
     expiries.fill(tmp)
   elif expiries.size != size:
-    return option_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_rates = discount_rates, continuous_dividends = continuous_dividends, cost_of_carries = cost_of_carries, discount_factors = discount_factors, is_call_options = is_call_options, is_normal_volatility = is_normal_volatility, dtype = dtype, name = name)
+    return option_price_ref(volatilities=volatilities, strikes=strikes, expiries=expiries, spots=spots, forwards=forwards, discount_rates=discount_rates, continuous_dividends=continuous_dividends, cost_of_carries=cost_of_carries, discount_factors=discount_factors, is_call_options=is_call_options, is_normal_volatility=is_normal_volatility, dtype=dtype, name=name)
 
   if forwards is not None:
     if forwards.size == 1:
       tmp = forwards[0]
-      forwards = ndinaccel(size, dtype = np.float32)
+      forwards = ndinaccel(size, np.float32)
       forwards.fill(tmp)
     elif not forwards.size == size:
-      return option_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_rates = discount_rates, continuous_dividends = continuous_dividends, cost_of_carries = cost_of_carries, discount_factors = discount_factors, is_call_options = is_call_options, is_normal_volatility = is_normal_volatility, dtype = dtype, name = name)
+      return option_price_ref(volatilities=volatilities, strikes=strikes, expiries=expiries, spots=spots, forwards=forwards, discount_rates=discount_rates, continuous_dividends=continuous_dividends, cost_of_carries=cost_of_carries, discount_factors=discount_factors, is_call_options=is_call_options, is_normal_volatility=is_normal_volatility, dtype=dtype, name=name)
   else:
     if spots.size == 1:
       tmp = spots[0]
-      spots = ndinaccel(size, dtype = np.float32)
+      spots = ndinaccel(size, np.float32)
       spots.fill(tmp)
     elif not spots.size == size:
-      return option_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_rates = discount_rates, continuous_dividends = continuous_dividends, cost_of_carries = cost_of_carries, discount_factors = discount_factors, is_call_options = is_call_options, is_normal_volatility = is_normal_volatility, dtype = dtype, name = name)
+      return option_price_ref(volatilities=volatilities, strikes=strikes, expiries=expiries, spots=spots, forwards=forwards, discount_rates=discount_rates, continuous_dividends=continuous_dividends, cost_of_carries=cost_of_carries, discount_factors=discount_factors, is_call_options=is_call_options, is_normal_volatility=is_normal_volatility, dtype=dtype, name=name)
 
   if cost_of_carries is None:
     if discount_rates is None:
       if discount_factors is not None:
         discount_rates = -np.log(discount_factors) / expiries
       else:
-        discount_rates = np.ndarray(size, dtype = np.float32)
+        discount_rates = np.ndarray(size, np.float32)
         discount_rates.fill(0.0)
 
     if continuous_dividends is None:
-      continuous_dividends = np.ndarray(size, dtype = np.float32)
+      continuous_dividends = np.ndarray(size, np.float32)
       continuous_dividends.fill(0.0)
 
-    cost_of_carries = asinaccel(discount_rates - continuous_dividends, dtype = np.float32)
+    cost_of_carries = asinaccel(discount_rates - continuous_dividends, np.float32)
   else:
     if cost_of_carries.size == 1:
       tmp = cost_of_carries[0]
-      cost_of_carries = ndinaccel(size, dtype = np.float32)
+      cost_of_carries = ndinaccel(size, np.float32)
       cost_of_carries.fill(tmp)
     elif not cost_of_carries.size == size:
-      return option_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_rates = discount_rates, continuous_dividends = continuous_dividends, cost_of_carries = cost_of_carries, discount_factors = discount_factors, is_call_options = is_call_options, is_normal_volatility = is_normal_volatility, dtype = dtype, name = name)
+      return option_price_ref(volatilities=volatilities, strikes=strikes, expiries=expiries, spots=spots, forwards=forwards, discount_rates=discount_rates, continuous_dividends=continuous_dividends, cost_of_carries=cost_of_carries, discount_factors=discount_factors, is_call_options=is_call_options, is_normal_volatility=is_normal_volatility, dtype=dtype, name=name)
 
   if discount_factors is None:
     if discount_rates is not None:
-      discount_factors = asinaccel(np.exp(discount_rates * expiries), dtype = np.float32)
+      discount_factors = asinaccel(np.exp(discount_rates * expiries), np.float32)
     else:
-      discount_factors = ndinaccel(size, dtype = np.float32)
+      discount_factors = ndinaccel(size, np.float32)
       discount_factors.fill(1.0)
   else:
     if discount_factors.size == 1:
       tmp = discount_factors[0]
-      discount_factors = ndinaccel(size, dtype = np.float32)
+      discount_factors = ndinaccel(size, np.float32)
       discount_factors.fill(tmp)
     elif not discount_factors.size == size:
-      return option_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_rates = discount_rates, continuous_dividends = continuous_dividends, cost_of_carries = cost_of_carries, discount_factors = discount_factors, is_call_options = is_call_options, is_normal_volatility = is_normal_volatility, dtype = dtype, name = name)
+      return option_price_ref(volatilities=volatilities, strikes=strikes, expiries=expiries, spots=spots, forwards=forwards, discount_rates=discount_rates, continuous_dividends=continuous_dividends, cost_of_carries=cost_of_carries, discount_factors=discount_factors, is_call_options=is_call_options, is_normal_volatility=is_normal_volatility, dtype=dtype, name=name)
 
   if is_call_options is None:
-    is_call_options = ndinaccel(size, dtype = np.bool)
+    is_call_options = ndinaccel(size, np.bool_)
     is_call_options.fill(True)
   else:
     if is_call_options.size == 1:
       tmp = is_call_options[0]
-      is_call_options = ndinaccel(size, dtype = np.bool)
+      is_call_options = ndinaccel(size, np.bool_)
       is_call_options.fill(tmp)
     elif is_call_options.size != size:
-      return option_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_rates = discount_rates, continuous_dividends = continuous_dividends, cost_of_carries = cost_of_carries, discount_factors = discount_factors, is_call_options = is_call_options, is_normal_volatility = is_normal_volatility, dtype = dtype, name = name)
+      return option_price_ref(volatilities=volatilities, strikes=strikes, expiries=expiries, spots=spots, forwards=forwards, discount_rates=discount_rates, continuous_dividends=continuous_dividends, cost_of_carries=cost_of_carries, discount_factors=discount_factors, is_call_options=is_call_options, is_normal_volatility=is_normal_volatility, dtype=dtype, name=name)
 
-  option_price = ndinaccel(size, dtype = np.float32)
+  option_price = ndinaccel(size, np.float32)
 
   try:
     request = inaccel.request('com.inaccel.quantitativeFinance.blackScholes.option-price')
@@ -292,9 +296,9 @@ def option_price(*,
 
     inaccel.submit(request).result()
 
-    return tf.convert_to_tensor(option_price, name = (name or 'option_price'))
+    return tf.convert_to_tensor(option_price, name=(name or 'option_price'))
   except:
-    return option_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_rates = discount_rates, continuous_dividends = continuous_dividends, cost_of_carries = cost_of_carries, discount_factors = discount_factors, is_call_options = is_call_options, is_normal_volatility = is_normal_volatility, dtype = dtype, name = name)
+    return option_price_ref(volatilities=volatilities, strikes=strikes, expiries=expiries, spots=spots, forwards=forwards, discount_rates=discount_rates, continuous_dividends=continuous_dividends, cost_of_carries=cost_of_carries, discount_factors=discount_factors, is_call_options=is_call_options, is_normal_volatility=is_normal_volatility, dtype=dtype, name=name)
 
 
 # TODO(b/154806390): Binary price signature should be the same as that of the
@@ -385,93 +389,93 @@ def binary_price(*,
     raise ValueError('Either spots or forwards must be supplied but not both.')
 
   if (dtype is not None) and (np.dtype(dtype) != np.float32):
-    return binary_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_factors = discount_factors, is_call_options = is_call_options, dtype = dtype, name = name)
+    return binary_price_ref(volatilities=volatilities, strikes=strikes, expiries=expiries, spots=spots, forwards=forwards, discount_factors=discount_factors, is_call_options=is_call_options, dtype=dtype, name=name)
 
   size = np.int32(1)
 
-  volatilities = asinaccel(volatilities, np.float32, 1)
-  size = np.maximum(size, volatilities.size, dtype = np.int32)
+  volatilities = asinaccel(volatilities, np.float32)
+  size = np.maximum(size, volatilities.size, dtype=np.int32)
 
-  strikes = asinaccel(strikes, np.float32, 1)
-  size = np.maximum(size, strikes.size, dtype = np.int32)
+  strikes = asinaccel(strikes, np.float32)
+  size = np.maximum(size, strikes.size, dtype=np.int32)
 
-  expiries = asinaccel(expiries, np.float32, 1)
-  size = np.maximum(size, expiries.size, dtype = np.int32)
+  expiries = asinaccel(expiries, np.float32)
+  size = np.maximum(size, expiries.size, dtype=np.int32)
 
   if forwards is not None:
-    forwards = asinaccel(forwards, np.float32, 1)
-    size = np.maximum(size, forwards.size, dtype = np.int32)
+    forwards = asinaccel(forwards, np.float32)
+    size = np.maximum(size, forwards.size, dtype=np.int32)
   else:
-    spots = asinaccel(spots, np.float32, 1)
-    size = np.maximum(size, spots.size, dtype = np.int32)
+    spots = asinaccel(spots, np.float32)
+    size = np.maximum(size, spots.size, dtype=np.int32)
 
   if discount_factors is not None:
-    discount_factors = asinaccel(discount_factors, np.float32, 1)
-    size = np.maximum(size, discount_factors.size, dtype = np.int32)
+    discount_factors = asinaccel(discount_factors, np.float32)
+    size = np.maximum(size, discount_factors.size, dtype=np.int32)
 
   if is_call_options is not None:
-    is_call_options = asinaccel(is_call_options, np.bool, 1)
-    size = np.maximum(size, is_call_options.size, dtype = np.int32)
+    is_call_options = asinaccel(is_call_options, np.bool_)
+    size = np.maximum(size, is_call_options.size, dtype=np.int32)
 
   if volatilities.size == 1:
     tmp = volatilities[0]
-    volatilities = ndinaccel(size, dtype = np.float32)
+    volatilities = ndinaccel(size, np.float32)
     volatilities.fill(tmp)
   elif volatilities.size != size:
-    return binary_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_factors = discount_factors, is_call_options = is_call_options, dtype = dtype, name = name)
+    return binary_price_ref(volatilities=volatilities, strikes=strikes, expiries=expiries, spots=spots, forwards=forwards, discount_factors=discount_factors, is_call_options=is_call_options, dtype=dtype, name=name)
 
   if strikes.size == 1:
     tmp = strikes[0]
-    strikes = ndinaccel(size, dtype = np.float32)
+    strikes = ndinaccel(size, np.float32)
     strikes.fill(tmp)
   elif strikes.size != size:
-    return binary_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_factors = discount_factors, is_call_options = is_call_options, dtype = dtype, name = name)
+    return binary_price_ref(volatilities=volatilities, strikes=strikes, expiries=expiries, spots=spots, forwards=forwards, discount_factors=discount_factors, is_call_options=is_call_options, dtype=dtype, name=name)
 
   if expiries.size == 1:
     tmp = expiries[0]
-    expiries = ndinaccel(size, dtype = np.float32)
+    expiries = ndinaccel(size, np.float32)
     expiries.fill(tmp)
   elif expiries.size != size:
-    return binary_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_factors = discount_factors, is_call_options = is_call_options, dtype = dtype, name = name)
+    return binary_price_ref(volatilities=volatilities, strikes=strikes, expiries=expiries, spots=spots, forwards=forwards, discount_factors=discount_factors, is_call_options=is_call_options, dtype=dtype, name=name)
 
   if forwards is not None:
     if forwards.size == 1:
       tmp = forwards[0]
-      forwards = ndinaccel(size, dtype = np.float32)
+      forwards = ndinaccel(size, np.float32)
       forwards.fill(tmp)
     elif forwards.size != size:
-      return binary_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_factors = discount_factors, is_call_options = is_call_options, dtype = dtype, name = name)
+      return binary_price_ref(volatilities=volatilities, strikes=strikes, expiries=expiries, spots=spots, forwards=forwards, discount_factors=discount_factors, is_call_options=is_call_options, dtype=dtype, name=name)
   else:
     if spots.size == 1:
       tmp = spots[0]
-      spots = ndinaccel(size, dtype = np.float32)
+      spots = ndinaccel(size, np.float32)
       spots.fill(tmp)
     elif spots.size != size:
-      return binary_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_factors = discount_factors, is_call_options = is_call_options, dtype = dtype, name = name)
+      return binary_price_ref(volatilities=volatilities, strikes=strikes, expiries=expiries, spots=spots, forwards=forwards, discount_factors=discount_factors, is_call_options=is_call_options, dtype=dtype, name=name)
 
   if discount_factors is None:
-    discount_factors = ndinaccel(size, dtype = np.float32)
+    discount_factors = ndinaccel(size, np.float32)
     discount_factors.fill(1.0)
   else:
     if discount_factors.size == 1:
       tmp = discount_factors[0]
-      discount_factors = ndinaccel(size, dtype = np.float32)
+      discount_factors = ndinaccel(size, np.float32)
       discount_factors.fill(tmp)
     elif discount_factors.size != size:
-      return binary_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_factors = discount_factors, is_call_options = is_call_options, dtype = dtype, name = name)
+      return binary_price_ref(volatilities=volatilities, strikes=strikes, expiries=expiries, spots=spots, forwards=forwards, discount_factors=discount_factors, is_call_options=is_call_options, dtype=dtype, name=name)
 
   if is_call_options is None:
-    is_call_options = ndinaccel(size, dtype = np.bool)
+    is_call_options = ndinaccel(size, np.bool_)
     is_call_options.fill(True)
   else:
     if is_call_options.size == 1:
       tmp = is_call_options[0]
-      is_call_options = ndinaccel(size, dtype = np.bool)
+      is_call_options = ndinaccel(size, np.bool_)
       is_call_options.fill(tmp)
     elif is_call_options.size != size:
-      return binary_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_factors = discount_factors, is_call_options = is_call_options, dtype = dtype, name = name)
+      return binary_price_ref(volatilities=volatilities, strikes=strikes, expiries=expiries, spots=spots, forwards=forwards, discount_factors=discount_factors, is_call_options=is_call_options, dtype=dtype, name=name)
 
-  binary_price = ndinaccel(size, dtype = np.float32)
+  binary_price = ndinaccel(size, np.float32)
 
   try:
     request = inaccel.request('com.inaccel.quantitativeFinance.blackScholes.binary-price')
@@ -492,6 +496,6 @@ def binary_price(*,
 
     inaccel.submit(request).result()
 
-    return tf.convert_to_tensor(binary_price, name = (name or 'binary_price'))
+    return tf.convert_to_tensor(binary_price, name=(name or 'binary_price'))
   except:
-    return binary_price_ref(volatilities = volatilities, strikes = strikes, expiries = expiries, spots = spots, forwards = forwards, discount_factors = discount_factors, is_call_options = is_call_options, dtype = dtype, name = name)
+    return binary_price_ref(volatilities=volatilities, strikes=strikes, expiries=expiries, spots=spots, forwards=forwards, discount_factors=discount_factors, is_call_options=is_call_options, dtype=dtype, name=name)
