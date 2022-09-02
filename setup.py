@@ -16,6 +16,10 @@ def bump(package, version):
         inaccel = tuple([0])
     return '.'.join(str(x) for x in version.release + inaccel)
 
+def README():
+    with open('README.md') as md:
+        return md.read()
+
 coral_api = '==2.*'
 
 package = 'tf-quant-finance'
@@ -28,6 +32,8 @@ setup(
     version = bump(package, version),
     license = 'Apache-2.0',
     description = 'InAccel ' + package + '-like package',
+    long_description=README(),
+    long_description_content_type='text/markdown',
     author = 'InAccel',
     author_email = 'info@inaccel.com',
     url = 'https://docs.inaccel.com',
@@ -43,9 +49,9 @@ setup(
         'Operating System :: POSIX :: Linux',
         'Programming Language :: Python',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10',
     ],
-    python_requires = '>=3.7',
+    python_requires = '>=3.8',
 )

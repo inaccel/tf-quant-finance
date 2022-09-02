@@ -15,7 +15,6 @@ jobs:
     - name: Create source & (binary) wheel distributions
       run: python setup.py sdist bdist_wheel
     - name: Publish package to PyPI
-      uses: pypa/gh-action-pypi-publish@master
+      uses: pypa/gh-action-pypi-publish@release/v1
       with:
-        user: __token__
         password: ${{ secrets.PYPI }}
